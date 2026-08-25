@@ -31,4 +31,16 @@ public final class ScheduleResolver {
         }
         return ResolvedPlaylist.defaultPlaylist(defaultPlaylist);
     }
+
+    public static boolean hasEnabledPlaylist(List<ScheduledPlaylist> scheduledPlaylists) {
+        Objects.requireNonNull(scheduledPlaylists, "scheduledPlaylists");
+        for (ScheduledPlaylist scheduledPlaylist : scheduledPlaylists) {
+            if (scheduledPlaylist != null
+                    && scheduledPlaylist.rule().isEnabled()
+                    && !scheduledPlaylist.playlist().isEmpty()) {
+                return true;
+            }
+        }
+        return false;
+    }
 }

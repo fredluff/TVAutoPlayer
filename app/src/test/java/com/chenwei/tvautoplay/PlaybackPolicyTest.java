@@ -116,4 +116,31 @@ public final class PlaybackPolicyTest {
                 0
         ));
     }
+
+    @Test
+    public void disabledOrEmptyFutureSchedulesDoNotLaunchAfterBoot() {
+        ScheduledPlaylist disabled = new ScheduledPlaylist(
+                new ScheduleRule("disabled", 8 * 60, 12 * 60, false),
+                Collections.singletonList(new PlaylistItem("content://disabled", "disabled.mp4"))
+        );
+        ScheduledPlaylist empty = new ScheduledPlaylist(
+                new ScheduleRule("empty", 12 * 60, 18 * 60, true),
+                Collections.emptyList()
+        );
+        PlaybackConfiguration configuration = new PlaybackConfiguration(
+                Collections.emptyList(),
+                true,
+                true,
+                ScaleMode.FIT,
+                ImageDuration.DEFAULT,
+                true,
+                java.util.Arrays.asList(disabled, empty)
+        );
+
+        assertFalse(PlaybackPolicy.shouldLaunchOnBoot(
+                configuration,
+                Collections.emptyList(),
+                0
+        ));
+    }
 }

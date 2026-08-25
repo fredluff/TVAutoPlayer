@@ -61,7 +61,7 @@ public final class PlaybackPolicy {
             return false;
         }
         boolean waitingForFutureSchedule = configuration.scheduleEnabled()
-                && !configuration.scheduledPlaylists().isEmpty()
+                && ScheduleResolver.hasEnabledPlaylist(configuration.scheduledPlaylists())
                 && (effectivePlaylist == null || effectivePlaylist.isEmpty());
         return waitingForFutureSchedule
                 || decide(effectivePlaylist, readableMediaCount) == PlaybackDecision.READY;

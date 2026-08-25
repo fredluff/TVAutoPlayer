@@ -143,7 +143,9 @@ public final class MainActivity extends ComponentActivity {
             releasePlayer();
             if (decision == PlaybackDecision.NEEDS_SELECTION
                     && configuration.scheduleEnabled()
-                    && !configuration.scheduledPlaylists().isEmpty()) {
+                    && ScheduleResolver.hasEnabledPlaylist(
+                            configuration.scheduledPlaylists()
+                    )) {
                 showWaitingForSchedule();
                 return;
             }
