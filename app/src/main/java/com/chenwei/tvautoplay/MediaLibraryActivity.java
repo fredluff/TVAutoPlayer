@@ -23,6 +23,9 @@ import java.util.concurrent.Executors;
 /** D-pad-friendly built-in library for images/videos on TV storage and attached USB volumes. */
 public final class MediaLibraryActivity extends ComponentActivity {
     public static final String EXTRA_APPEND_SELECTION = "append_selection";
+    public static final String EXTRA_RETURN_SELECTION = "return_selection";
+    public static final String EXTRA_INITIAL_PLAYLIST_JSON = "initial_playlist_json";
+    public static final String EXTRA_SELECTED_PLAYLIST_JSON = "selected_playlist_json";
     private static final String STATE_PERMISSION_REQUESTED = "permission_requested";
     private static final String STATE_SELECTED_URIS = "selected_uris";
     private static final String STATE_SELECTION_INITIALIZED = "selection_initialized";
@@ -39,6 +42,8 @@ public final class MediaLibraryActivity extends ComponentActivity {
     private Button confirmButton;
     private Button permissionButton;
     private boolean appendSelection;
+    private boolean returnSelection;
+    private List<PlaylistItem> initialPlaylist = new ArrayList<>();
     private boolean permissionRequested;
     private boolean selectionInitialized;
     private boolean destroyed;
@@ -56,6 +61,10 @@ public final class MediaLibraryActivity extends ComponentActivity {
         configStore = new PlaybackConfigStore(this);
         repository = new MediaStoreMediaRepository();
         appendSelection = getIntent().getBooleanExtra(EXTRA_APPEND_SELECTION, false);
+        returnSelection = getIntent().getBooleanExtra(EXTRA_RETURN_SELECTION, false);
+        initialPlaylist = PlaybackConfigurationCodec.decodePlaylist(
+                getIntent().getStringExtra(EXTRA_INITIAL_PLAYLIST_JSON)
+        );
         permissionRequested = savedInstanceState != null
                 && savedInstanceState.getBoolean(STATE_PERMISSION_REQUESTED, false);
         if (savedInstanceState != null) {
@@ -73,6 +82,10 @@ public final class MediaLibraryActivity extends ComponentActivity {
         videoList = findViewById(R.id.media_video_list);
         confirmButton = findViewById(R.id.confirm_media_selection_button);
         permissionButton = findViewById(R.id.grant_media_permission_button);
+
+        if (returnSelection) {
+            confirmButton.setText(R.string.confirm_schedule_media_selection);
+        }
 
         confirmButton.setOnClickListener(view -> saveSelection());
         videoList.setOnItemClickListener((parent, view, position, id) -> {
@@ -228,7 +241,13 @@ public final class MediaLibraryActivity extends ComponentActivity {
 
         if (!selectionInitialized) {
             selectionInitialized = true;
-            if (!appendSelection) {
+            if (returnSelection) {
+                for (PlaylistItem item : initialPlaylist) {
+                    if (availableUris.contains(item.uri())) {
+                        selectedUrisInOrder.add(item.uri());
+                    }
+                }
+            } else if (!appendSelection) {
                 for (PlaylistItem item : configStore.load().playlist()) {
                     if (availableUris.contains(item.uri())) {
                         selectedUrisInOrder.add(item.uri());
@@ -255,6 +274,16 @@ public final class MediaLibraryActivity extends ComponentActivity {
         }
         if (selected.isEmpty()) {
             Toast.makeText(this, R.string.media_library_select_at_least_one, Toast.LENGTH_LONG).show();
+            return;
+        }
+
+        if (returnSelection) {
+            Intent result = new Intent().putExtra(
+                    EXTRA_SELECTED_PLAYLIST_JSON,
+                    PlaybackConfigurationCodec.encodePlaylist(selected)
+            );
+            setResult(RESULT_OK, result);
+            finish();
             return;
         }
 

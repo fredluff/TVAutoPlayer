@@ -48,6 +48,14 @@
             android:exported="false" />
 
         <activity
+            android:name=".ScheduleActivity"
+            android:exported="false" />
+
+        <activity
+            android:name=".ScheduleEditorActivity"
+            android:exported="false" />
+
+        <activity
             android:name=".MediaLibraryActivity"
             android:exported="false" />
 

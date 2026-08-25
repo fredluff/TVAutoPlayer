@@ -35,6 +35,6 @@ jobs:
       - name: Upload debug APK
         uses: actions/upload-artifact@v6
         with:
-          name: TVAutoPlayer-v1.4.0-debug
-          path: dist/TVAutoPlayer-v1.4.0-debug.apk
+          name: TVAutoPlayer-v1.5.0-debug
+          path: dist/TVAutoPlayer-v1.5.0-debug.apk
           if-no-files-found: error

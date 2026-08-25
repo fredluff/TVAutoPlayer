@@ -1,5 +1,102 @@
 # CHANGELOG
 
+## V1.5.0 - 2026-08-25
+
+- 开发人员：chenwei666
+- 版本类型：多时间段独立播放列表与播放自动切换功能版本
+
+### 新增功能
+
+- 新增多个每日时间段播放方案，每个规则拥有独立的有序图片/视频混合列表。
+- 新增跨午夜时间规则，例如 `22:00–06:00`；匹配语义统一为开始时间包含、结束时间不包含。
+- 新增时间段总开关、单条规则启用/停用、30 分钟步进时间选择、编辑、删除和全部清空。
+- 新增启用规则重叠检测；相邻规则允许保存，重叠规则会在界面中被阻止并提示。
+- 新增播放期间每 30 秒检查时间边界；只在有效方案 ID 改变时重建播放器队列。
+- 新增未来时间段等待模式：默认列表为空但已配置未来规则时，开机后可保持应用运行并到点播放。
+- 新增 `ScheduleRule`、`ScheduledPlaylist`、`ScheduleResolver`、`ResolvedPlaylist`、`ScheduleConflictDetector` 和 `ScheduleClock` 领域模块。
+- 新增带 `schemaVersion=1` 的时间段 JSON 编解码及损坏条目容错。
+- 新增中英文时间段设置、冲突、等待状态、确认和错误提示文案。
+- 新增 `docs/releases/v1.5.0.md` 和 `Version/V1.5.0` 完整项目快照。
+
+### 问题修复
+
+- 修复开机时只检查默认列表、无法根据当前时间启动对应时间段列表的问题。
+- 修复默认列表为空时，即使当前时间段有有效媒体仍会被播放策略判定为“需要选片”的问题。
+- 修复仅配置未来时间段时，开机接收器跳过启动导致到点无法自动播放的问题。
+- 修复时间段编辑初版使用 API 24 `Consumer` 和 `removeIf`、会破坏 Android 6.0（API 23）兼容性的问题，改用 API 23 可用实现。
+- 修正文档中安全支持版本、媒体权限边界和旧版部署说明与实际代码不一致的问题。
+
+### 优化内容
+
+- 把播放列表 JSON 读写集中到 `PlaybackConfigurationCodec`，减少默认列表和时间段列表的重复序列化代码。
+- 时间解析、冲突检测和播放决策保持为纯 Java 模块，可在无 Android 设备环境下做快速回归测试。
+- 内置媒体库新增“返回选择结果”模式，时间段编辑器可复用同一套电视/U盘扫描、多选、排序和权限逻辑，不直接修改默认列表。
+- 时间段规则按保存顺序保持稳定优先级；界面提前拦截重叠，解析器仍提供确定性回退。
+- 更新 README、英文 README、架构、测试、部署、安全、贡献和路线图文档。
+
+### 删除内容
+
+- 无功能删除。
+- 未删除默认播放列表、图片轮播、多文件循环、系统文件选择器、内置媒体库、中英文界面、分辨率适配或开机播放逻辑。
+
+### 修改文件
+
+- 新增时间段领域与持久化源码：`ScheduleRule.java`、`ScheduledPlaylist.java`、`ScheduleResolver.java`、`ResolvedPlaylist.java`、`ScheduleConflictDetector.java`、`ScheduleClock.java`、`PlaybackConfigurationCodec.java`。
+- 新增电视界面源码与布局：`ScheduleActivity.java`、`ScheduleEditorActivity.java`、`activity_schedule.xml`、`activity_schedule_editor.xml`、`item_schedule_button.xml`。
+- 修改 `MainActivity.java`、`BootCompletedReceiver.java`、`PlaybackPolicy.java`、`PlaybackConfiguration.java`、`PlaybackConfigStore.java`、`SettingsActivity.java`、`MediaLibraryActivity.java` 和 Manifest。
+- 修改中文/英文字符串、设置页布局、Gradle 依赖、版本号、构建脚本和 GitHub Actions 产物名称。
+- 新增 `ScheduleRuleTest.java`、`ScheduleResolverTest.java`、`ScheduleConflictDetectorTest.java`、`PlaybackConfigurationCodecTest.java`，扩充 `PlaybackPolicyTest.java`。
+- 修改 `README.md`、`README_EN.md`、`ROADMAP.md`、`SECURITY.md`、`CONTRIBUTING.md` 及 `docs` 文档。
+
+### 影响模块
+
+- 播放配置模型、SharedPreferences 持久化、开机决策、前台播放生命周期、内置媒体选择器、设置导航、双语资源、测试、构建和发布流程。
+- 默认列表继续作为无匹配规则时的回退，原图片/视频播放顺序、比例、声音和图片时长行为保持不变。
+
+### 数据库变更
+
+- 无数据库；应用不会读取、查询或连接数据库。
+
+### 接口变更
+
+- 无网络 API、服务器接口或外部业务接口变更。
+- 新增内部配置接口 `setScheduleEnabled`、`saveScheduledPlaylists` 及有效播放列表解析接口。
+- `MediaLibraryActivity` 新增仅应用内部可用的选择结果 Intent 参数；Activity 保持 `exported=false`。
+
+### 配置变更
+
+- SharedPreferences 新增 `schedule_enabled`，默认 `false`。
+- SharedPreferences 新增 `scheduled_playlists_json`，使用 `schemaVersion=1`；缺失或无效时回退为空规则。
+- `versionCode` 从 8 升至 9，`versionName` 从 1.4.0 升至 1.5.0。
+- 构建产物名称升级为 `TVAutoPlayer-v1.5.0-debug.apk`。
+- JVM 测试新增 `org.json:json:20240303`，仅用于测试 Android JSON 编解码逻辑。
+
+### 兼容性说明
+
+- 最低 Android 6.0（API 23）、目标 Android 16（API 36）和应用 ID 保持不变。
+- V1.0.0～V1.4.0 的默认列表、URI、声音、比例、图片时长和开机设置直接保留；时间段功能升级后默认关闭。
+- 时间段选择复用 MediaStore 只读权限，不新增网络、数据库、整盘管理或高风险权限。
+- Debug 签名保持一致时可覆盖安装；不同签名仍需卸载旧版。
+
+### 升级方式
+
+- 相同签名执行 `adb install -r TVAutoPlayer-v1.5.0-debug.apk`，原设置和默认列表保留。
+- 升级后如需时间段功能，进入“功能设置 → 时间段自动切换”，新增规则并选择媒体；未配置时行为与 V1.4.0 相同。
+- 不同签名无法覆盖；卸载重装会清除配置和 URI 授权，但不会删除电视或U盘中的原始媒体。
+
+### 已知问题
+
+- 当前发布 APK 使用 Android Debug 证书；正式批量部署应使用企业固定 Release 证书。
+- 时间边界采用前台 30 秒轮询，切换可能最多延迟约 30 秒；应用被厂商强制停止时无法到点切换。
+- 时间选择精度为 30 分钟，尚不支持按星期、日期、节假日或独立图片停留时间。
+- 验证开发机未连接真实 Android TV 或 TV 模拟器，U盘索引、遥控器焦点、厂商开机限制、真实边界时间和长时间循环仍需目标硬件验收。
+
+### 备注
+
+- 本版本按 TDD 完成时间规则、解析、冲突、配置容错和启动策略回归测试。
+- 本地质量门禁包括中英文资源验证、全部单元测试、Android Lint 和 Debug APK 构建。
+- 发布 APK SHA-256：`d74d531fb3fce7743b1fb144b4996c37ed185a6255ae0ed9617270b35713e2cf`。
+
 ## V1.4.0 - 2026-08-12
 
 - 开发人员：chenwei666

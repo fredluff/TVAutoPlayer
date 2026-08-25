@@ -1,5 +1,7 @@
 package com.chenwei.tvautoplay;
 
+import java.util.List;
+
 /** Pure decision logic kept independent from Android so critical startup behavior is testable. */
 public final class PlaybackPolicy {
     private PlaybackPolicy() {
@@ -16,10 +18,17 @@ public final class PlaybackPolicy {
             PlaybackConfiguration configuration,
             int readableVideoCount
     ) {
-        if (configuration == null || !configuration.hasMedia()) {
+        return decide(configuration == null ? null : configuration.playlist(), readableVideoCount);
+    }
+
+    public static PlaybackDecision decide(
+            List<PlaylistItem> effectivePlaylist,
+            int readableMediaCount
+    ) {
+        if (effectivePlaylist == null || effectivePlaylist.isEmpty()) {
             return PlaybackDecision.NEEDS_SELECTION;
         }
-        if (readableVideoCount <= 0) {
+        if (readableMediaCount <= 0) {
             return PlaybackDecision.PERMISSION_REQUIRED;
         }
         return PlaybackDecision.READY;
@@ -36,8 +45,25 @@ public final class PlaybackPolicy {
             PlaybackConfiguration configuration,
             int readableVideoCount
     ) {
-        return configuration != null
-                && configuration.autoStartEnabled()
-                && decide(configuration, readableVideoCount) == PlaybackDecision.READY;
+        return shouldLaunchOnBoot(
+                configuration,
+                configuration == null ? null : configuration.playlist(),
+                readableVideoCount
+        );
+    }
+
+    public static boolean shouldLaunchOnBoot(
+            PlaybackConfiguration configuration,
+            List<PlaylistItem> effectivePlaylist,
+            int readableMediaCount
+    ) {
+        if (configuration == null || !configuration.autoStartEnabled()) {
+            return false;
+        }
+        boolean waitingForFutureSchedule = configuration.scheduleEnabled()
+                && !configuration.scheduledPlaylists().isEmpty()
+                && (effectivePlaylist == null || effectivePlaylist.isEmpty());
+        return waitingForFutureSchedule
+                || decide(effectivePlaylist, readableMediaCount) == PlaybackDecision.READY;
     }
 }

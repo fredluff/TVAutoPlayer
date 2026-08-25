@@ -3,21 +3,15 @@ package com.chenwei.tvautoplay;
 import android.content.Context;
 import android.content.SharedPreferences;
 import android.net.Uri;
-import android.util.Log;
-
-import org.json.JSONArray;
-import org.json.JSONException;
-import org.json.JSONObject;
-
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
 /** Stores only non-sensitive playback preferences; media content is never copied. */
 public final class PlaybackConfigStore {
-    private static final String TAG = "PlaybackConfigStore";
     private static final String PREFS_NAME = "playback_configuration";
     private static final String KEY_PLAYLIST = "playlist_json";
+    private static final String KEY_SCHEDULE_ENABLED = "schedule_enabled";
+    private static final String KEY_SCHEDULED_PLAYLISTS = "scheduled_playlists_json";
     private static final String KEY_VIDEO_URI = "video_uri";
     private static final String KEY_DISPLAY_NAME = "display_name";
     private static final String KEY_AUTO_START = "auto_start";
@@ -42,6 +36,10 @@ public final class PlaybackConfigStore {
                 ScaleMode.fromStoredValue(preferences.getString(KEY_SCALE_MODE, null)),
                 ImageDuration.fromStoredValue(
                         preferences.getString(KEY_IMAGE_DURATION, null)
+                ),
+                preferences.getBoolean(KEY_SCHEDULE_ENABLED, false),
+                PlaybackConfigurationCodec.decodeSchedules(
+                        preferences.getString(KEY_SCHEDULED_PLAYLISTS, null)
                 )
         );
     }
@@ -52,21 +50,8 @@ public final class PlaybackConfigStore {
     }
 
     public void savePlaylist(List<PlaylistItem> playlist) {
-        List<PlaylistItem> normalized = PlaylistEditor.replace(playlist);
-        JSONArray array = new JSONArray();
-        for (PlaylistItem item : normalized) {
-            JSONObject object = new JSONObject();
-            try {
-                object.put("uri", item.uri());
-                object.put("name", item.displayName());
-                object.put("kind", item.kind().name());
-                array.put(object);
-            } catch (JSONException exception) {
-                throw new IllegalStateException("Unable to serialize playlist", exception);
-            }
-        }
         preferences.edit()
-                .putString(KEY_PLAYLIST, array.toString())
+                .putString(KEY_PLAYLIST, PlaybackConfigurationCodec.encodePlaylist(playlist))
                 .remove(KEY_VIDEO_URI)
                 .remove(KEY_DISPLAY_NAME)
                 .apply();
@@ -100,6 +85,19 @@ public final class PlaybackConfigStore {
         preferences.edit().putString(KEY_IMAGE_DURATION, duration.name()).apply();
     }
 
+    public void setScheduleEnabled(boolean enabled) {
+        preferences.edit().putBoolean(KEY_SCHEDULE_ENABLED, enabled).apply();
+    }
+
+    public void saveScheduledPlaylists(List<ScheduledPlaylist> scheduledPlaylists) {
+        preferences.edit()
+                .putString(
+                        KEY_SCHEDULED_PLAYLISTS,
+                        PlaybackConfigurationCodec.encodeSchedules(scheduledPlaylists)
+                )
+                .apply();
+    }
+
     public boolean isSettingsHintShown() {
         return preferences.getBoolean(KEY_HINT_SHOWN, false);
     }
@@ -127,28 +125,6 @@ public final class PlaybackConfigStore {
     }
 
     private List<PlaylistItem> parsePlaylist(String storedValue) {
-        List<PlaylistItem> items = new ArrayList<>();
-        try {
-            JSONArray array = new JSONArray(storedValue == null ? "[]" : storedValue);
-            for (int index = 0; index < array.length(); index++) {
-                JSONObject object = array.optJSONObject(index);
-                if (object == null) {
-                    continue;
-                }
-                String uri = object.optString("uri", null);
-                if (uri == null || uri.trim().isEmpty()) {
-                    continue;
-                }
-                items.add(new PlaylistItem(
-                        uri,
-                        object.optString("name", null),
-                        MediaKind.fromStoredValue(object.optString("kind", null))
-                ));
-            }
-        } catch (JSONException | IllegalArgumentException exception) {
-            Log.e(TAG, "Stored playlist is invalid; selection is required again", exception);
-            return Collections.emptyList();
-        }
-        return PlaylistEditor.replace(items);
+        return PlaybackConfigurationCodec.decodePlaylist(storedValue);
     }
 }

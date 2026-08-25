@@ -32,10 +32,12 @@ public final class SettingsActivity extends ComponentActivity {
     private Button soundButton;
     private Button scaleButton;
     private Button imageDurationButton;
+    private TextView scheduleSummary;
     private boolean pickerStarted;
     private boolean appendSelection;
     private ActivityResultLauncher<Intent> videoPickerLauncher;
     private ActivityResultLauncher<Intent> mediaLibraryLauncher;
+    private ActivityResultLauncher<Intent> scheduleLauncher;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -55,6 +57,10 @@ public final class SettingsActivity extends ComponentActivity {
                     }
                 }
         );
+        scheduleLauncher = registerForActivityResult(
+                new ActivityResultContracts.StartActivityForResult(),
+                result -> refreshValues()
+        );
         setContentView(R.layout.activity_settings);
         configStore = new PlaybackConfigStore(this);
         if (savedInstanceState != null) {
@@ -67,6 +73,7 @@ public final class SettingsActivity extends ComponentActivity {
         soundButton = findViewById(R.id.sound_button);
         scaleButton = findViewById(R.id.scale_button);
         imageDurationButton = findViewById(R.id.image_duration_button);
+        scheduleSummary = findViewById(R.id.schedule_summary_value);
 
         findViewById(R.id.select_video_button).setOnClickListener(
                 view -> openMediaLibrary(false)
@@ -84,6 +91,9 @@ public final class SettingsActivity extends ComponentActivity {
         soundButton.setOnClickListener(view -> toggleSound());
         scaleButton.setOnClickListener(view -> toggleScaleMode());
         imageDurationButton.setOnClickListener(view -> toggleImageDuration());
+        findViewById(R.id.schedule_settings_button).setOnClickListener(
+                view -> scheduleLauncher.launch(new Intent(this, ScheduleActivity.class))
+        );
 
         refreshValues();
         boolean chooseImmediately = getIntent().getBooleanExtra(EXTRA_CHOOSE_IMMEDIATELY, false);
@@ -274,6 +284,19 @@ public final class SettingsActivity extends ComponentActivity {
                 R.string.image_duration_value,
                 configuration.imageDuration().seconds()
         ));
+        scheduleSummary.setText(configuration.scheduledPlaylists().isEmpty()
+                ? getString(R.string.schedule_settings_empty)
+                : getString(
+                        R.string.schedule_settings_summary,
+                        getResources().getQuantityString(
+                                R.plurals.schedule_count,
+                                configuration.scheduledPlaylists().size(),
+                                configuration.scheduledPlaylists().size()
+                        ),
+                        getString(configuration.scheduleEnabled()
+                                ? R.string.schedule_master_on
+                                : R.string.schedule_master_off)
+                ));
     }
 
     private String formatPlaylist(List<PlaylistItem> playlist) {

@@ -52,7 +52,7 @@ try {
 $distDirectory = Join-Path $projectRoot 'dist'
 New-Item -ItemType Directory -Force -Path $distDirectory | Out-Null
 $sourceApk = Join-Path $buildRoot 'app\build\outputs\apk\debug\app-debug.apk'
-$targetApk = Join-Path $distDirectory 'TVAutoPlayer-v1.4.0-debug.apk'
+$targetApk = Join-Path $distDirectory 'TVAutoPlayer-v1.5.0-debug.apk'
 Copy-Item -LiteralPath $sourceApk -Destination $targetApk -Force
 
 $sha256 = [System.Security.Cryptography.SHA256]::Create()
@@ -63,8 +63,8 @@ try {
     $stream.Dispose()
     $sha256.Dispose()
 }
-Set-Content -LiteralPath (Join-Path $distDirectory 'TVAutoPlayer-v1.4.0-debug.apk.sha256') `
-    -Value "$hash  TVAutoPlayer-v1.4.0-debug.apk" `
+Set-Content -LiteralPath (Join-Path $distDirectory 'TVAutoPlayer-v1.5.0-debug.apk.sha256') `
+    -Value "$hash  TVAutoPlayer-v1.5.0-debug.apk" `
     -Encoding ascii
 
 Write-Host "Build succeeded: $targetApk"

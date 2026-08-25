@@ -1,6 +1,7 @@
 package com.chenwei.tvautoplay;
 
 import java.util.Collections;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
@@ -11,6 +12,8 @@ public final class PlaybackConfiguration {
     private final boolean soundEnabled;
     private final ScaleMode scaleMode;
     private final ImageDuration imageDuration;
+    private final boolean scheduleEnabled;
+    private final List<ScheduledPlaylist> scheduledPlaylists;
 
     public PlaybackConfiguration(
             List<PlaylistItem> playlist,
@@ -28,11 +31,35 @@ public final class PlaybackConfiguration {
             ScaleMode scaleMode,
             ImageDuration imageDuration
     ) {
+        this(
+                playlist,
+                autoStartEnabled,
+                soundEnabled,
+                scaleMode,
+                imageDuration,
+                false,
+                Collections.emptyList()
+        );
+    }
+
+    public PlaybackConfiguration(
+            List<PlaylistItem> playlist,
+            boolean autoStartEnabled,
+            boolean soundEnabled,
+            ScaleMode scaleMode,
+            ImageDuration imageDuration,
+            boolean scheduleEnabled,
+            List<ScheduledPlaylist> scheduledPlaylists
+    ) {
         this.playlist = PlaylistEditor.replace(playlist);
         this.autoStartEnabled = autoStartEnabled;
         this.soundEnabled = soundEnabled;
         this.scaleMode = Objects.requireNonNull(scaleMode, "scaleMode");
         this.imageDuration = Objects.requireNonNull(imageDuration, "imageDuration");
+        this.scheduleEnabled = scheduleEnabled;
+        this.scheduledPlaylists = Collections.unmodifiableList(
+                new ArrayList<>(Objects.requireNonNull(scheduledPlaylists, "scheduledPlaylists"))
+        );
     }
 
     /** Compatibility constructor for upgrading V1.0.0's single-video configuration. */
@@ -89,6 +116,14 @@ public final class PlaybackConfiguration {
 
     public ImageDuration imageDuration() {
         return imageDuration;
+    }
+
+    public boolean scheduleEnabled() {
+        return scheduleEnabled;
+    }
+
+    public List<ScheduledPlaylist> scheduledPlaylists() {
+        return scheduledPlaylists;
     }
 
     public boolean hasMedia() {

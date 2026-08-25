@@ -18,11 +18,21 @@ public final class BootCompletedReceiver extends BroadcastReceiver {
         }
 
         PlaybackConfiguration configuration = new PlaybackConfigStore(context).load();
-        int readableVideoCount = UriAccess.readableItems(
+        ResolvedPlaylist effective = ScheduleResolver.resolve(
+                configuration.playlist(),
+                configuration.scheduledPlaylists(),
+                configuration.scheduleEnabled(),
+                ScheduleClock.currentMinuteOfDay()
+        );
+        int readableMediaCount = UriAccess.readableItems(
                 context,
-                configuration.playlist()
+                effective.playlist()
         ).size();
-        if (!PlaybackPolicy.shouldLaunchOnBoot(configuration, readableVideoCount)) {
+        if (!PlaybackPolicy.shouldLaunchOnBoot(
+                configuration,
+                effective.playlist(),
+                readableMediaCount
+        )) {
             Log.i(TAG, "Boot launch skipped because playback is not ready or auto-start is off");
             return;
         }

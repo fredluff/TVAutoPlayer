@@ -3,6 +3,8 @@ package com.chenwei.tvautoplay;
 import android.content.Intent;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.view.KeyEvent;
 import android.view.View;
 import android.view.WindowInsets;
@@ -33,6 +35,10 @@ import java.util.List;
 /** Full-screen TV playback surface for mixed image/video playlists. */
 @OptIn(markerClass = UnstableApi.class)
 public final class MainActivity extends ComponentActivity {
+    private static final long SCHEDULE_CHECK_INTERVAL_MS = 30_000L;
+
+    private final Handler scheduleHandler = new Handler(Looper.getMainLooper());
+    private final Runnable scheduleCheck = this::checkForScheduleTransition;
     private PlayerView playerView;
     private View emptyPanel;
     private View errorPanel;
@@ -45,6 +51,8 @@ public final class MainActivity extends ComponentActivity {
     private boolean unreadableNoticeShown;
     private int consecutivePlaybackFailures;
     private int activePlaylistSize;
+    private String activePlaylistSourceId;
+    private boolean activityStarted;
     private ActivityResultLauncher<Intent> settingsLauncher;
 
     @Override
@@ -88,11 +96,16 @@ public final class MainActivity extends ComponentActivity {
     @Override
     protected void onStart() {
         super.onStart();
+        activityStarted = true;
         startConfiguredPlayback();
+        scheduleHandler.removeCallbacks(scheduleCheck);
+        scheduleHandler.postDelayed(scheduleCheck, SCHEDULE_CHECK_INTERVAL_MS);
     }
 
     @Override
     protected void onStop() {
+        activityStarted = false;
+        scheduleHandler.removeCallbacks(scheduleCheck);
         releasePlayer();
         super.onStop();
     }
@@ -116,16 +129,24 @@ public final class MainActivity extends ComponentActivity {
 
     private void startConfiguredPlayback() {
         PlaybackConfiguration configuration = configStore.load();
+        ResolvedPlaylist effective = resolveEffectivePlaylist(configuration);
+        activePlaylistSourceId = effective.sourceId();
         List<PlaylistItem> readableItems = UriAccess.readableItems(
                 this,
-                configuration.playlist()
+                effective.playlist()
         );
         PlaybackDecision decision = PlaybackPolicy.decide(
-                configuration,
+                effective.playlist(),
                 readableItems.size()
         );
         if (decision != PlaybackDecision.READY) {
             releasePlayer();
+            if (decision == PlaybackDecision.NEEDS_SELECTION
+                    && configuration.scheduleEnabled()
+                    && !configuration.scheduledPlaylists().isEmpty()) {
+                showWaitingForSchedule();
+                return;
+            }
             showSelectionRequired(decision);
             if (!settingsOpen && !selectionPromptAttempted) {
                 openSettings(true);
@@ -133,14 +154,15 @@ public final class MainActivity extends ComponentActivity {
             return;
         }
 
-        if (!unreadableNoticeShown && readableItems.size() < configuration.mediaCount()) {
+        if (!unreadableNoticeShown && readableItems.size() < effective.playlist().size()) {
             unreadableNoticeShown = true;
+            int unreadableCount = effective.playlist().size() - readableItems.size();
             Toast.makeText(
                     this,
                     getResources().getQuantityString(
                             R.plurals.unreadable_media_skipped,
-                            configuration.mediaCount() - readableItems.size(),
-                            configuration.mediaCount() - readableItems.size()
+                            unreadableCount,
+                            unreadableCount
                     ),
                     Toast.LENGTH_LONG
             ).show();
@@ -197,6 +219,27 @@ public final class MainActivity extends ComponentActivity {
         }
     }
 
+    private ResolvedPlaylist resolveEffectivePlaylist(PlaybackConfiguration configuration) {
+        return ScheduleResolver.resolve(
+                configuration.playlist(),
+                configuration.scheduledPlaylists(),
+                configuration.scheduleEnabled(),
+                ScheduleClock.currentMinuteOfDay()
+        );
+    }
+
+    private void checkForScheduleTransition() {
+        if (!activityStarted) {
+            return;
+        }
+        PlaybackConfiguration configuration = configStore.load();
+        ResolvedPlaylist effective = resolveEffectivePlaylist(configuration);
+        if (!effective.sourceId().equals(activePlaylistSourceId)) {
+            startConfiguredPlayback();
+        }
+        scheduleHandler.postDelayed(scheduleCheck, SCHEDULE_CHECK_INTERVAL_MS);
+    }
+
     private void retryPlayback() {
         if (player == null) {
             startConfiguredPlayback();
@@ -221,6 +264,13 @@ public final class MainActivity extends ComponentActivity {
         emptyMessage.setText(decision == PlaybackDecision.PERMISSION_REQUIRED
                 ? R.string.playlist_permission_lost
                 : R.string.no_playlist_selected);
+    }
+
+    private void showWaitingForSchedule() {
+        playerView.setVisibility(View.GONE);
+        errorPanel.setVisibility(View.GONE);
+        emptyPanel.setVisibility(View.VISIBLE);
+        emptyMessage.setText(R.string.no_active_schedule);
     }
 
     private void showPlaybackError(PlaybackException error) {
