@@ -1,5 +1,10 @@
 package com.chenwei.tvautoplay;
 
+import android.Manifest;
+import android.content.pm.PackageManager;
+import android.os.Build;
+import android.util.Log;
+
 import android.content.Intent;
 import android.os.Bundle;
 import android.view.View;
@@ -54,7 +59,11 @@ public final class MediaLibraryActivity extends ComponentActivity {
         super.onCreate(savedInstanceState);
         permissionLauncher = registerForActivityResult(
                 new ActivityResultContracts.RequestMultiplePermissions(),
-                result -> handlePermissionResult()
+                result -> {
+                    Log.i("EUI_DIAG", "Permission result = " + result);
+                    logEuiPermissions("After permission request");
+                    handlePermissionResult();
+                }
         );
         setContentView(R.layout.activity_media_library);
 
@@ -160,6 +169,9 @@ public final class MediaLibraryActivity extends ComponentActivity {
     }
 
     private void scanMedia() {
+        Log.i("EUI_DIAG", "scanMedia() called");
+        logEuiPermissions("Before MediaStore scan");
+
         permissionButton.setVisibility(View.GONE);
         confirmButton.setEnabled(false);
         videoList.setVisibility(View.GONE);
@@ -168,8 +180,11 @@ public final class MediaLibraryActivity extends ComponentActivity {
         scanExecutor.execute(() -> {
             List<PlaylistItem> scanned;
             try {
-                scanned = repository.queryMedia(getApplicationContext());
+                scanned = new DirectMediaRepository()
+                        .queryMedia(getApplicationContext());
             } catch (RuntimeException exception) {
+                Log.e("EUI_DIAG", "Media scan crashed", exception);
+
                 scanned = null;
             }
             List<PlaylistItem> result = scanned;
@@ -182,6 +197,9 @@ public final class MediaLibraryActivity extends ComponentActivity {
     }
 
     private void showScanResult(List<PlaylistItem> result) {
+        Log.i("EUI_DIAG", "showScanResult count = " +
+                (result == null ? "NULL" : result.size()));
+
         if (destroyed || isFinishing()) {
             return;
         }
@@ -297,5 +315,39 @@ public final class MediaLibraryActivity extends ComponentActivity {
         configStore.savePlaylist(updated);
         setResult(RESULT_OK);
         finish();
+    }
+    private void logEuiPermissions(String stage) {
+        String tag = "EUI_DIAG";
+
+        Log.i(tag, "Permission check: " + stage);
+        Log.i(tag, "SDK = " + Build.VERSION.SDK_INT);
+        Log.i(tag, "Target SDK = " +
+                getApplicationInfo().targetSdkVersion);
+
+        if (Build.VERSION.SDK_INT >= 33) {
+            Log.i(tag, "READ_MEDIA_VIDEO = " +
+                    (checkSelfPermission(
+                            Manifest.permission.READ_MEDIA_VIDEO)
+                            == PackageManager.PERMISSION_GRANTED));
+
+            Log.i(tag, "READ_MEDIA_IMAGES = " +
+                    (checkSelfPermission(
+                            Manifest.permission.READ_MEDIA_IMAGES)
+                            == PackageManager.PERMISSION_GRANTED));
+        }
+
+        if (Build.VERSION.SDK_INT >= 34) {
+            Log.i(tag, "USER_SELECTED = " +
+                    (checkSelfPermission(
+                            Manifest.permission.READ_MEDIA_VISUAL_USER_SELECTED)
+                            == PackageManager.PERMISSION_GRANTED));
+        }
+
+        if (Build.VERSION.SDK_INT < 33) {
+            Log.i(tag, "READ_EXTERNAL_STORAGE = " +
+                    (checkSelfPermission(
+                            Manifest.permission.READ_EXTERNAL_STORAGE)
+                            == PackageManager.PERMISSION_GRANTED));
+        }
     }
 }
